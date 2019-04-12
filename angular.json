@@ -1,0 +1,142 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "newProjectRoot": "",
+  "projects": {
+    "improved-table": {
+      "root": "apps/improved-table/",
+      "sourceRoot": "apps/improved-table/src",
+      "projectType": "application",
+      "prefix": "improved-table",
+      "schematics": {
+        "@nrwl/schematics:component": {
+          "style": "scss"
+        }
+      },
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-angular:browser",
+          "options": {
+            "outputPath": "dist/apps/improved-table",
+            "index": "apps/improved-table/src/index.html",
+            "main": "apps/improved-table/src/main.ts",
+            "polyfills": "apps/improved-table/src/polyfills.ts",
+            "tsConfig": "apps/improved-table/tsconfig.app.json",
+            "assets": [
+              "apps/improved-table/src/favicon.ico",
+              "apps/improved-table/src/assets"
+            ],
+            "styles": ["apps/improved-table/src/styles.scss"],
+            "scripts": [],
+            "es5BrowserSupport": true
+          },
+          "configurations": {
+            "production": {
+              "fileReplacements": [
+                {
+                  "replace": "apps/improved-table/src/environments/environment.ts",
+                  "with": "apps/improved-table/src/environments/environment.prod.ts"
+                }
+              ],
+              "optimization": true,
+              "outputHashing": "all",
+              "sourceMap": false,
+              "extractCss": true,
+              "namedChunks": false,
+              "aot": true,
+              "extractLicenses": true,
+              "vendorChunk": false,
+              "buildOptimizer": true,
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "2mb",
+                  "maximumError": "5mb"
+                }
+              ]
+            }
+          }
+        },
+        "serve": {
+          "builder": "@angular-devkit/build-angular:dev-server",
+          "options": {
+            "browserTarget": "improved-table:build"
+          },
+          "configurations": {
+            "production": {
+              "browserTarget": "improved-table:build:production"
+            }
+          }
+        },
+        "extract-i18n": {
+          "builder": "@angular-devkit/build-angular:extract-i18n",
+          "options": {
+            "browserTarget": "improved-table:build"
+          }
+        },
+        "lint": {
+          "builder": "@angular-devkit/build-angular:tslint",
+          "options": {
+            "tsConfig": [
+              "apps/improved-table/tsconfig.app.json",
+              "apps/improved-table/tsconfig.spec.json"
+            ],
+            "exclude": ["**/node_modules/**"]
+          }
+        },
+        "test": {
+          "builder": "@nrwl/builders:jest",
+          "options": {
+            "jestConfig": "apps/improved-table/jest.config.js",
+            "tsConfig": "apps/improved-table/tsconfig.spec.json",
+            "setupFile": "apps/improved-table/src/test-setup.ts"
+          }
+        }
+      }
+    },
+    "improved-table-e2e": {
+      "root": "apps/improved-table-e2e",
+      "projectType": "application",
+      "prefix": "",
+      "architect": {
+        "e2e": {
+          "builder": "@nrwl/builders:cypress",
+          "options": {
+            "cypressConfig": "apps/improved-table-e2e/cypress.json",
+            "tsConfig": "apps/improved-table-e2e/tsconfig.e2e.json",
+            "devServerTarget": "improved-table:serve"
+          },
+          "configurations": {
+            "production": {
+              "devServerTarget": "improved-table:serve:production"
+            }
+          }
+        },
+        "lint": {
+          "builder": "@angular-devkit/build-angular:tslint",
+          "options": {
+            "tsConfig": "apps/improved-table-e2e/tsconfig.e2e.json",
+            "exclude": ["**/node_modules/**"]
+          }
+        }
+      }
+    }
+  },
+  "cli": {
+    "warnings": {
+      "typescriptMismatch": false,
+      "versionMismatch": false
+    },
+    "defaultCollection": "@nrwl/schematics"
+  },
+  "schematics": {
+    "@nrwl/schematics:application": {
+      "style": "scss",
+      "framework": "angular"
+    },
+    "@nrwl/schematics:library": {
+      "style": "scss"
+    }
+  },
+  "defaultProject": "improved-table"
+}
