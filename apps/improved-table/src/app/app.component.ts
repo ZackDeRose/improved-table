@@ -1,5 +1,5 @@
-import { Component, ViewChild, AfterViewInit } from '@angular/core';
-import { FormControl, FormGroup } from '@angular/forms';
+import { Component, ViewChild, AfterViewInit, OnInit } from '@angular/core';
+import { FormControl } from '@angular/forms';
 import {
   createSuperlatives,
   Hero,
@@ -8,8 +8,23 @@ import {
   Superlatives
 } from '@improved-table/util-hero';
 import { Observable, Subject, of } from 'rxjs';
-import { map, scan, startWith, switchMap, shareReplay } from 'rxjs/operators';
-import { Sort, MatPaginator, MatSort, SortDirection } from '@angular/material';
+import {
+  map,
+  scan,
+  startWith,
+  switchMap,
+  shareReplay,
+  publishReplay,
+  refCount,
+  tap
+} from 'rxjs/operators';
+import {
+  Sort,
+  MatPaginator,
+  MatSort,
+  SortDirection,
+  PageEvent
+} from '@angular/material';
 
 export interface HeroTableModel {
   name: string;
@@ -66,90 +81,97 @@ export function indexForPage({ size, current }: Page): PageIndexes {
   };
 }
 
-@Component({
-  selector: 'improved-table-root',
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss']
-})
-export class AppComponent implements AfterViewInit {
-  @ViewChild('paginator') paginator: MatPaginator;
-  @ViewChild(MatSort) table: MatSort;
-  heroTableModelKeys = heroTableModelKeys;
-  columns = [...heroTableModelKeys, 'levelUp'];
-  public levelUpEvents$ = new Subject<string>();
-  private _heroes$: Observable<{
-    [index: string]: Hero;
-  }> = this.levelUpEvents$.pipe(
-    scan<string, { [index: string]: Hero }>(
-      (acc, heroIndex) => ({
-        ...acc,
-        [heroIndex]: levelUp(acc[heroIndex])
-      }),
-      HEROES
-    ),
-    startWith(HEROES),
-    shareReplay(1)
-  );
-  public superlatives$: Observable<Superlatives> = this._heroes$.pipe(
-    map(createSuperlatives)
-  );
-  private sorting$: Observable<Sort>;
-  pagingForm = new FormGroup({
-    size: new FormControl(5),
-    current: new FormControl(0)
-  });
-  private _paging$: Observable<Page>;
-  public search = new FormControl('');
-  private _dataPassingSearch$: Observable<
-    HeroTableModel[]
-  > = this._heroes$.pipe(
-    map(obj => Object.values(obj)),
-    map(heroes => heroes.map(heroToTableModel)),
-    switchMap(tableModels =>
-      this.search.valueChanges.pipe(
-        startWith(this.search.value),
-        map(searchTerm =>
-          tableModels.filter(model => {
-            for (const key in model) {
-              if (
-                model[key]
-                  .toString()
-                  .toLowerCase()
-                  .includes(searchTerm.toLowerCase())
-              ) {
-                return true;
-              }
-            }
-            return false;
-          })
-        )
-      )
-    ),
-    shareReplay(1)
-  );
-  public dataOnPage$: Observable<HeroTableModel[]> = of([]);
-  public numberOfHeroesPassingSearch$ = this._dataPassingSearch$.pipe(
-    map(heroMap => Object.values(heroMap).length)
-  );
-  public pageSize$: Observable<number> = of(5);
+export function levelUpHeroes(startingHeroes: {
+  [name: string]: Hero;
+}): (
+  heroNamesToLevelUp: Observable<string>
+) => Observable<{ [name: string]: Hero }> {
+  return (heroNamesToLevelUp: Observable<string>) =>
+    heroNamesToLevelUp.pipe(
+      scan<string, { [index: string]: Hero }>(
+        (acc, heroIndex) => ({
+          ...acc,
+          [heroIndex]: levelUp(acc[heroIndex])
+        }),
+        startingHeroes
+      ),
+      startWith(startingHeroes),
+      publishReplay(1),
+      refCount()
+    );
+}
 
-  ngAfterViewInit() {
-    this._paging$ = this.paginator.page.pipe(
+export function tableModelPassesSearch(
+  searchTerm$: Observable<string>,
+  formControl: FormControl
+): (
+  currentHeroes: Observable<{ [name: string]: Hero }>
+) => Observable<HeroTableModel[]> {
+  return (currentHeroes: Observable<{ [name: string]: Hero }>) =>
+    currentHeroes.pipe(
+      map(obj => Object.values(obj)),
+      map(heroes => heroes.map(heroToTableModel)),
+      switchMap(tableModels =>
+        searchTerm$.pipe(
+          startWith(formControl.value),
+          map(searchTerm =>
+            tableModels.filter(model => {
+              for (const key in model) {
+                if (
+                  model[key]
+                    .toString()
+                    .toLowerCase()
+                    .includes(searchTerm.toLowerCase())
+                ) {
+                  return true;
+                }
+              }
+              return false;
+            })
+          )
+        )
+      ),
+      publishReplay(1),
+      refCount()
+    );
+}
+
+export function paginatorToPaging(): (
+  pageEvents: Observable<PageEvent>
+) => Observable<Page> {
+  return (pageEvents: Observable<PageEvent>) =>
+    pageEvents.pipe(
       map(pageEvent => ({
         current: pageEvent.pageIndex,
         size: pageEvent.pageSize
       })),
       startWith({ current: 0, size: 5 }),
-      shareReplay(1)
+      publishReplay(1),
+      refCount()
     );
-    this.sorting$ = this.table.sortChange.pipe(
+}
+
+export function sortinatorToSorting(): (
+  sortChangeEvents: Observable<Sort>
+) => Observable<Sort> {
+  return (sortChangeEvents: Observable<Sort>) =>
+    sortChangeEvents.pipe(
       startWith({ active: '', direction: '' as SortDirection }),
-      shareReplay(1)
+      publishReplay(1),
+      refCount()
     );
-    this.pageSize$ = this._paging$.pipe(map(paging => paging.size));
-    this.dataOnPage$ = this._dataPassingSearch$.pipe(
+}
+
+export function toDataOnPage(
+  sorting: Observable<Sort>,
+  paging: Observable<Page>
+): (
+  dataPassingSearch: Observable<HeroTableModel[]>
+) => Observable<HeroTableModel[]> {
+  return (dataPassingSearch: Observable<HeroTableModel[]>) =>
+    dataPassingSearch.pipe(
       switchMap(data =>
-        this.sorting$.pipe(
+        sorting.pipe(
           map(sorting =>
             !sorting.active || sorting.direction === ''
               ? data.sort((a, b) => (a.name > b.name ? 1 : -1))
@@ -163,13 +185,71 @@ export class AppComponent implements AfterViewInit {
         )
       ),
       switchMap(data =>
-        this._paging$.pipe(
+        paging.pipe(
           map(page => {
             const { startingIndex, endingIndex } = indexForPage(page);
             return data.slice(startingIndex, endingIndex);
           })
         )
       )
+    );
+}
+
+@Component({
+  selector: 'improved-table-root',
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.scss']
+})
+export class AppComponent implements OnInit, AfterViewInit {
+  @ViewChild(MatPaginator) paginator: MatPaginator;
+  @ViewChild(MatSort) table: MatSort;
+  heroTableModelKeys = heroTableModelKeys;
+  columns = [...heroTableModelKeys, 'levelUp'];
+  public searchForm = new FormControl('');
+
+  // sources of truth
+  public levelUpEvents$ = new Subject<string>();
+  private _HEROES = HEROES;
+  private _searchTerm$: Observable<string>;
+  private _paginator$: Observable<PageEvent>; // created in afterViewInit
+  private _sortinator$: Observable<Sort>; // created in afterViewInit
+
+  // implementation detail observables
+  private _heroes$: Observable<{
+    [index: string]: Hero;
+  }>;
+  private _dataPassingSearch$: Observable<HeroTableModel[]>;
+  private _paging$: Observable<Page>;
+  private _sorting$: Observable<Sort>;
+
+  // output observables
+  public superlatives$: Observable<Superlatives>;
+  public dataOnPage$: Observable<HeroTableModel[]>;
+  public totalResults$: Observable<number>;
+  public pageSize$: Observable<number>;
+
+  ngOnInit() {
+    this._heroes$ = this.levelUpEvents$.pipe(levelUpHeroes(this._HEROES));
+    this.superlatives$ = this._heroes$.pipe(map(createSuperlatives));
+    this._searchTerm$ = this.searchForm.valueChanges;
+    this._dataPassingSearch$ = this._heroes$.pipe(
+      tableModelPassesSearch(this._searchTerm$, this.searchForm)
+    );
+    this.totalResults$ = this._dataPassingSearch$.pipe(
+      map(heroMap => Object.values(heroMap).length)
+    );
+  }
+
+  ngAfterViewInit() {
+    // init sources of truth that we needed view init for
+    this._paginator$ = this.paginator.page;
+    this._sortinator$ = this.table.sortChange;
+
+    this._paging$ = this._paginator$.pipe(paginatorToPaging());
+    this._sorting$ = this._sortinator$.pipe(sortinatorToSorting());
+    this.pageSize$ = this._paging$.pipe(map(paging => paging.size));
+    this.dataOnPage$ = this._dataPassingSearch$.pipe(
+      toDataOnPage(this._sorting$, this._paging$)
     );
   }
 }

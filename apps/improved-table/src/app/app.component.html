@@ -1,9 +1,9 @@
 <mat-card class="mat-elevation-z8">
   <mat-form-field appearance="outline">
     <mat-label>Filter Table Contents</mat-label>
-    <input matInput placeholder="Filter" [formControl]="search" />
+    <input matInput placeholder="Filter" [formControl]="searchForm" />
   </mat-form-field>
-  <table mat-table [dataSource]="dataOnPage$" matSort #table>
+  <table mat-table [dataSource]="dataOnPage$" matSort>
     <ng-container *ngIf="(superlatives$ | async) as superlatives">
       <ng-container *ngFor="let key of heroTableModelKeys" [matColumnDef]="key">
         <th mat-header-cell *matHeaderCellDef mat-sort-header>
@@ -47,8 +47,7 @@
   </table>
 
   <mat-paginator
-    #paginator
-    [length]="numberOfHeroesPassingSearch$ | async"
+    [length]="totalResults$ | async"
     [pageSize]="pageSize$ | async"
     [pageSizeOptions]="[5, 10, 25, 100]"
   >
