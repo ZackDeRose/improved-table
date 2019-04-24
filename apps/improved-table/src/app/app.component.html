@@ -1,25 +1,56 @@
-<div style="text-align:center">
-  <h1>Welcome to {{ title }}!</h1>
-  <img
-    width="450"
-    src="https://raw.githubusercontent.com/nrwl/nx/master/nx-logo.png"
-  />
-</div>
+<mat-card class="mat-elevation-z8">
+  <mat-form-field appearance="outline">
+    <mat-label>Filter Table Contents</mat-label>
+    <input matInput placeholder="Filter" [formControl]="search" />
+  </mat-form-field>
+  <table mat-table [dataSource]="dataOnPage$" matSort #table>
+    <ng-container *ngIf="(superlatives$ | async) as superlatives">
+      <ng-container *ngFor="let key of heroTableModelKeys" [matColumnDef]="key">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>
+          {{ key | titlecase }}
+        </th>
+        <td mat-cell *matCellDef="let row">
+          {{ row[key] }}
+          <mat-icon
+            *ngIf="(row.name | superlative: superlatives:key:'highest')"
+            color="primary"
+          >
+            thumb_up
+          </mat-icon>
+          <mat-icon
+            *ngIf="(row.name | superlative: superlatives:key:'lowest')"
+            color="warn"
+          >
+            thumb_down
+          </mat-icon>
+        </td>
+      </ng-container>
 
-<p>This is an Angular app built with <a href="https://nx.dev">Nx</a>.</p>
-<p>🔎 **Nx is a set of Angular CLI power-ups for modern development.**</p>
+      <!-- Level Up Column -->
+      <ng-container matColumnDef="levelUp">
+        <th mat-header-cell *matHeaderCellDef></th>
+        <td mat-cell *matCellDef="let row">
+          <button
+            mat-raised-button
+            (click)="levelUpEvents$.next(row.name)"
+            color="primary"
+          >
+            Level Up!!!
+          </button>
+        </td>
+      </ng-container>
+    </ng-container>
 
-<h2>Quick Start & Documentation</h2>
+    <!-- Header and Row Declarations -->
+    <tr mat-header-row *matHeaderRowDef="columns"></tr>
+    <tr mat-row *matRowDef="let row; columns: columns"></tr>
+  </table>
 
-<ul>
-  <li>
-    <a href="https://nx.dev/getting-started/what-is-nx"
-      >30-minute video showing all Nx features</a
-    >
-  </li>
-  <li>
-    <a href="https://nx.dev/tutorial/01-create-application"
-      >Interactive tutorial</a
-    >
-  </li>
-</ul>
+  <mat-paginator
+    #paginator
+    [length]="numberOfHeroesPassingSearch$ | async"
+    [pageSize]="pageSize$ | async"
+    [pageSizeOptions]="[5, 10, 25, 100]"
+  >
+  </mat-paginator>
+</mat-card>

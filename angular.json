@@ -120,6 +120,43 @@
           }
         }
       }
+    },
+    "util-hero": {
+      "root": "libs/util-hero",
+      "sourceRoot": "libs/util-hero/src",
+      "projectType": "library",
+      "prefix": "improved-table",
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-ng-packagr:build",
+          "options": {
+            "tsConfig": "libs/util-hero/tsconfig.lib.json",
+            "project": "libs/util-hero/ng-package.json"
+          }
+        },
+        "lint": {
+          "builder": "@angular-devkit/build-angular:tslint",
+          "options": {
+            "tsConfig": [
+              "libs/util-hero/tsconfig.lib.json",
+              "libs/util-hero/tsconfig.spec.json"
+            ],
+            "exclude": ["**/node_modules/**"]
+          }
+        },
+        "test": {
+          "builder": "@nrwl/builders:jest",
+          "options": {
+            "jestConfig": "libs/util-hero/jest.config.js",
+            "tsConfig": "libs/util-hero/tsconfig.spec.json"
+          }
+        }
+      },
+      "schematics": {
+        "@nrwl/schematics:component": {
+          "styleext": "scss"
+        }
+      }
     }
   },
   "cli": {

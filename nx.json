@@ -13,6 +13,9 @@
     },
     "improved-table-e2e": {
       "tags": []
+    },
+    "util-hero": {
+      "tags": ["type:util"]
     }
   }
 }
