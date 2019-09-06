@@ -1,5 +1,12 @@
-import { Component, ViewChild, AfterViewInit, OnInit } from '@angular/core';
+import { AfterViewInit, Component, OnInit, ViewChild } from '@angular/core';
 import { FormControl } from '@angular/forms';
+import {
+  MatPaginator,
+  MatSort,
+  PageEvent,
+  Sort,
+  SortDirection
+} from '@angular/material';
 import {
   createSuperlatives,
   Hero,
@@ -7,24 +14,15 @@ import {
   levelUp,
   Superlatives
 } from '@improved-table/util-hero';
-import { Observable, Subject, of } from 'rxjs';
+import { Observable, Subject } from 'rxjs';
 import {
   map,
-  scan,
-  startWith,
-  switchMap,
-  shareReplay,
   publishReplay,
   refCount,
-  tap
+  scan,
+  startWith,
+  switchMap
 } from 'rxjs/operators';
-import {
-  Sort,
-  MatPaginator,
-  MatSort,
-  SortDirection,
-  PageEvent
-} from '@angular/material';
 
 export interface HeroTableModel {
   name: string;
@@ -103,7 +101,7 @@ export function levelUpHeroes(startingHeroes: {
 
 export function tableModelPassesSearch(
   searchTerm$: Observable<string>,
-  formControl: FormControl
+  control: FormControl
 ): (
   currentHeroes: Observable<{ [name: string]: Hero }>
 ) => Observable<HeroTableModel[]> {
@@ -113,7 +111,7 @@ export function tableModelPassesSearch(
       map(heroes => heroes.map(heroToTableModel)),
       switchMap(tableModels =>
         searchTerm$.pipe(
-          startWith(formControl.value),
+          startWith(control.value),
           map(searchTerm =>
             tableModels.filter(model => {
               for (const key in model) {
@@ -169,26 +167,25 @@ export function toDataOnPage(
   dataPassingSearch: Observable<HeroTableModel[]>
 ) => Observable<HeroTableModel[]> {
   return (dataPassingSearch: Observable<HeroTableModel[]>) =>
-    dataPassingSearch.pipe(
-      switchMap(data =>
-        sorting.pipe(
-          map(sorting =>
-            !sorting.active || sorting.direction === ''
+    sorting.pipe(
+      switchMap(({ active, direction }) =>
+        dataPassingSearch.pipe(
+          map(data =>
+            !active || direction === ''
               ? data.sort((a, b) => (a.name > b.name ? 1 : -1))
               : data.sort((a, b) => {
-                  let sortMagnitude =
-                    a[sorting.active] > b[sorting.active] ? 1 : -1;
-                  sortMagnitude *= sorting.direction === 'asc' ? 1 : -1;
+                  let sortMagnitude = a[active] > b[active] ? 1 : -1;
+                  sortMagnitude *= direction === 'asc' ? 1 : -1;
                   return sortMagnitude;
                 })
           )
         )
       ),
-      switchMap(data =>
+      switchMap(sortedData =>
         paging.pipe(
           map(page => {
             const { startingIndex, endingIndex } = indexForPage(page);
-            return data.slice(startingIndex, endingIndex);
+            return sortedData.slice(startingIndex, endingIndex);
           })
         )
       )
@@ -241,15 +238,17 @@ export class AppComponent implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit() {
-    // init sources of truth that we needed view init for
-    this._paginator$ = this.paginator.page;
-    this._sortinator$ = this.table.sortChange;
+    setTimeout(() => {
+      // init sources of truth that we needed view init for
+      this._paginator$ = this.paginator.page;
+      this._sortinator$ = this.table.sortChange;
 
-    this._paging$ = this._paginator$.pipe(paginatorToPaging());
-    this._sorting$ = this._sortinator$.pipe(sortinatorToSorting());
-    this.pageSize$ = this._paging$.pipe(map(paging => paging.size));
-    this.dataOnPage$ = this._dataPassingSearch$.pipe(
-      toDataOnPage(this._sorting$, this._paging$)
-    );
+      this._paging$ = this._paginator$.pipe(paginatorToPaging());
+      this._sorting$ = this._sortinator$.pipe(sortinatorToSorting());
+      this.pageSize$ = this._paging$.pipe(map(paging => paging.size));
+      this.dataOnPage$ = this._dataPassingSearch$.pipe(
+        toDataOnPage(this._sorting$, this._paging$)
+      );
+    }, 0);
   }
 }
